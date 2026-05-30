@@ -1,5 +1,9 @@
 import unittest
-from src.inline_markdown import split_nodes_delimiter
+from src.inline_markdown import (
+    split_nodes_delimiter,
+    extract_markdown_images,
+    extract_markdown_links,
+)
 from src.text_node import TextNode, TextType
 
 
@@ -17,7 +21,6 @@ class TestSplitNodesDelimiter(unittest.TestCase):
     def test_non_text_node(self):
         nodes = [TextNode("Hello World", TextType.ITALIC)]
         result = split_nodes_delimiter(nodes, "_", TextType.ITALIC)
-        print(result)
         self.assertEqual(nodes, result)
 
     def test_single_section(self):
@@ -31,7 +34,7 @@ class TestSplitNodesDelimiter(unittest.TestCase):
                 TextNode(" world", TextType.TEXT),
             ],
         )
-    
+
     def test_multiple_sections(self):
         nodes = [TextNode("Hello `there` world. More `code` here.", TextType.TEXT)]
         result = split_nodes_delimiter(nodes, "`", TextType.CODE)
@@ -42,14 +45,14 @@ class TestSplitNodesDelimiter(unittest.TestCase):
                 TextNode("there", TextType.CODE),
                 TextNode(" world. More ", TextType.TEXT),
                 TextNode("code", TextType.CODE),
-                TextNode(" here.", TextType.TEXT)
+                TextNode(" here.", TextType.TEXT),
             ],
         )
-    
+
     def test_multiple_nodes(self):
         nodes = [
             TextNode("here is some **bold** text. ", TextType.TEXT),
-            TextNode("more **bold** text", TextType.TEXT)
+            TextNode("more **bold** text", TextType.TEXT),
         ]
         result = split_nodes_delimiter(nodes, "**", TextType.BOLD)
         self.assertEqual(
@@ -60,18 +63,86 @@ class TestSplitNodesDelimiter(unittest.TestCase):
                 TextNode(" text. ", TextType.TEXT),
                 TextNode("more ", TextType.TEXT),
                 TextNode("bold", TextType.BOLD),
-                TextNode(" text", TextType.TEXT)
-            ]
+                TextNode(" text", TextType.TEXT),
+            ],
         )
-    
+
     def test_delimiters_at_end(self):
         nodes = [TextNode("._..._", TextType.TEXT)]
         result = split_nodes_delimiter(nodes, "_", TextType.ITALIC)
-        self.assertEqual(result, [TextNode(".", TextType.TEXT), TextNode("...", TextType.ITALIC)])
+        self.assertEqual(
+            result, [TextNode(".", TextType.TEXT), TextNode("...", TextType.ITALIC)]
+        )
 
-    
     def test_delimiters_at_start(self):
         nodes = [TextNode("_..._.", TextType.TEXT)]
         result = split_nodes_delimiter(nodes, "_", TextType.ITALIC)
-        self.assertEqual(result, [TextNode("...", TextType.ITALIC), TextNode(".", TextType.TEXT)])
-        
+        self.assertEqual(
+            result, [TextNode("...", TextType.ITALIC), TextNode(".", TextType.TEXT)]
+        )
+
+
+class TestExtractMarkdownImages(unittest.TestCase):
+    def test_no_images(self):
+        text = "text only"
+        result = extract_markdown_images(text)
+        self.assertEqual(result, [])
+
+    def test_single_image(self):
+        text = "Here is an image: ![alt text](http://example.com/image.jpg)"
+        result = extract_markdown_images(text)
+        self.assertEqual(result, [("alt text", "http://example.com/image.jpg")])
+
+    def test_multiple_images(self):
+        text = "First image: ![first](http://example.com/first.jpg) and second image: ![second](http://example.com/second.jpg)"
+        result = extract_markdown_images(text)
+        self.assertEqual(
+            result,
+            [
+                ("first", "http://example.com/first.jpg"),
+                ("second", "http://example.com/second.jpg"),
+            ],
+        )
+
+    def test_wrong_image_syntax(self):
+        text = "This is not an image: ![alt text(http://example.com/image.jpg)"
+        result = extract_markdown_images(text)
+        self.assertEqual(result, [])
+
+    def test_link_syntax(self):
+        text = "link: [Google](http://google.com)"
+        result = extract_markdown_images(text)
+        self.assertEqual(result, [])
+
+
+class TestExtractMarkdownLinks(unittest.TestCase):
+    def test_no_links(self):
+        text = "no links"
+        result = extract_markdown_links(text)
+        self.assertEqual(result, [])
+
+    def test_single_link(self):
+        text = "Here is a link: [Google](http://google.com)"
+        result = extract_markdown_links(text)
+        self.assertEqual(result, [("Google", "http://google.com")])
+
+    def test_multiple_links(self):
+        text = "First link: [Google](http://google.com) and second link: [GitHub](http://github.com)"
+        result = extract_markdown_links(text)
+        self.assertEqual(
+            result, [("Google", "http://google.com"), ("GitHub", "http://github.com")]
+        )
+
+    def test_wrong_link_syntax(self):
+        text = "This is not a link: [Google(http://google.com)"
+        result = extract_markdown_links(text)
+        self.assertEqual(result, [])
+
+    def test_image_syntax(self):
+        text = "image: ![first](http://example.com/first.jpg)"
+        result = extract_markdown_links(text)
+        self.assertEqual(result, [])
+
+
+if __name__ == "__main__":
+    unittest.main()
