@@ -5,6 +5,7 @@ from src.inline_markdown import (
     extract_markdown_links,
     split_nodes_image,
     split_nodes_link,
+    text_to_textnodes,
 )
 from src.text_node import TextNode, TextType
 
@@ -183,6 +184,23 @@ class TestSplitNodesImage(unittest.TestCase):
             ],
         )
 
+    def test_image_in_between(self):
+        nodes = [
+            TextNode(
+                "Here is an image: ![alt text](http://example.com/image.jpg) in the middle of text.",
+                TextType.TEXT,
+            )
+        ]
+        result = split_nodes_image(nodes)
+        self.assertEqual(
+            result,
+            [
+                TextNode("Here is an image: ", TextType.TEXT),
+                TextNode("alt text", TextType.IMAGE, "http://example.com/image.jpg"),
+                TextNode(" in the middle of text.", TextType.TEXT),
+            ],
+        )
+
 
 class TestSplitNodesLink(unittest.TestCase):
     def test_no_links(self):
@@ -216,6 +234,94 @@ class TestSplitNodesLink(unittest.TestCase):
                 TextNode("Google", TextType.LINK, "http://google.com"),
                 TextNode(" and second link: ", TextType.TEXT),
                 TextNode("GitHub", TextType.LINK, "http://github.com"),
+            ],
+        )
+
+    def test_link_in_between(self):
+        nodes = [
+            TextNode(
+                "Here is a link: [Google](http://google.com) in the middle of text.",
+                TextType.TEXT,
+            )
+        ]
+        result = split_nodes_link(nodes)
+        self.assertEqual(
+            result,
+            [
+                TextNode("Here is a link: ", TextType.TEXT),
+                TextNode("Google", TextType.LINK, "http://google.com"),
+                TextNode(" in the middle of text.", TextType.TEXT),
+            ],
+        )
+
+
+class TestTextToTextNodes(unittest.TestCase):
+    def test_plain_text(self):
+        text = "Hello world"
+        result = text_to_textnodes(text)
+        self.assertEqual(result, [TextNode("Hello world", TextType.TEXT)])
+
+    def test_bold_and_italic(self):
+        text = "This is **bold** and _italic_ text."
+        result = text_to_textnodes(text)
+        self.assertEqual(
+            result,
+            [
+                TextNode("This is ", TextType.TEXT),
+                TextNode("bold", TextType.BOLD),
+                TextNode(" and ", TextType.TEXT),
+                TextNode("italic", TextType.ITALIC),
+                TextNode(" text.", TextType.TEXT),
+            ],
+        )
+
+    def test_code_and_link(self):
+        text = "Here is some `code` and a [link](http://example.com)."
+        result = text_to_textnodes(text)
+        self.assertEqual(
+            result,
+            [
+                TextNode("Here is some ", TextType.TEXT),
+                TextNode("code", TextType.CODE),
+                TextNode(" and a ", TextType.TEXT),
+                TextNode("link", TextType.LINK, "http://example.com"),
+                TextNode(".", TextType.TEXT),
+            ],
+        )
+
+    def test_image_and_bold(self):
+        text = (
+            "Here is an image: ![alt](http://example.com/image.jpg) and **bold** text."
+        )
+        result = text_to_textnodes(text)
+        self.assertEqual(
+            result,
+            [
+                TextNode("Here is an image: ", TextType.TEXT),
+                TextNode("alt", TextType.IMAGE, "http://example.com/image.jpg"),
+                TextNode(" and ", TextType.TEXT),
+                TextNode("bold", TextType.BOLD),
+                TextNode(" text.", TextType.TEXT),
+            ],
+        )
+
+    def test_all_markdown(self):
+        text = "This is **bold**, _italic_, `code`, a [link](http://example.com), and an image: ![alt](http://example.com/image.jpg)."
+        result = text_to_textnodes(text)
+        self.assertEqual(
+            result,
+            [
+                TextNode("This is ", TextType.TEXT),
+                TextNode("bold", TextType.BOLD),
+                TextNode(", ", TextType.TEXT),
+                TextNode("italic", TextType.ITALIC),
+                TextNode(", ", TextType.TEXT),
+                TextNode("code", TextType.CODE),
+                TextNode(", a ", TextType.TEXT),
+                TextNode("link", TextType.LINK, "http://example.com"),
+                TextNode(", and an image: ", TextType.TEXT),
+                TextNode("alt", TextType.IMAGE, "http://example.com/image.jpg"),
+                TextNode(".", TextType.TEXT),
             ],
         )
 
