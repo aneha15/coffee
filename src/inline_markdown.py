@@ -58,19 +58,26 @@ def extract_markdown_links(text):
 def split_nodes_image(nodes: list[TextNode]) -> list[TextNode]:
     new_nodes = []
     for n in nodes:
-        imgs = extract_markdown_images(n.text)
+        if n.text_type != TextType.TEXT:
+            new_nodes.append(n)
+            continue
 
+        imgs = extract_markdown_images(n.text)
         if not imgs:
             new_nodes.append(n)
             continue
 
-        sections = n.text
+        remaining = n.text
         for text, url in imgs:
-            sections = sections.split(f"![{text}]({url})", 1)
-            if sections[0] != "":
+            sections = remaining.split(f"![{text}]({url})", 1)
+            if sections[0]:
                 new_nodes.append(TextNode(sections[0], TextType.TEXT))
-                new_nodes.append(TextNode(text, TextType.IMAGE, url))
-                sections = sections[1]
+            
+            new_nodes.append(TextNode(text, TextType.IMAGE, url))
+            remaining = sections[1]
+
+        if remaining:
+            new_nodes.append(TextNode(remaining, TextType.TEXT))
 
     return new_nodes
 
@@ -78,18 +85,29 @@ def split_nodes_image(nodes: list[TextNode]) -> list[TextNode]:
 def split_nodes_link(nodes: list[TextNode]) -> list[TextNode]:
     new_nodes = []
     for n in nodes:
+        if n.text_type != TextType.TEXT:
+            new_nodes.append(n)
+            continue
+
         links = extract_markdown_links(n.text)
 
         if not links:
             new_nodes.append(n)
             continue
 
-        sections = n.text
+        remaining = n.text
         for text, url in links:
-            sections = sections.split(f"[{text}]({url})", 1)
-            if sections[0] != "":
+            sections = remaining.split(f"[{text}]({url})", 1)
+            if sections[0]:
                 new_nodes.append(TextNode(sections[0], TextType.TEXT))
-                new_nodes.append(TextNode(text, TextType.LINK, url))
-                sections = sections[1]
+            new_nodes.append(TextNode(text, TextType.LINK, url))
+            remaining = sections[1]
+
+        if remaining:
+            new_nodes.append(TextNode(remaining, TextType.TEXT))
 
     return new_nodes
+
+def text_to_textnodes(text):
+    pass
+
