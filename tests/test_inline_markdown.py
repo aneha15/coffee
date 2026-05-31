@@ -3,6 +3,8 @@ from src.inline_markdown import (
     split_nodes_delimiter,
     extract_markdown_images,
     extract_markdown_links,
+    split_nodes_image,
+    split_nodes_link,
 )
 from src.text_node import TextNode, TextType
 
@@ -142,6 +144,80 @@ class TestExtractMarkdownLinks(unittest.TestCase):
         text = "image: ![first](http://example.com/first.jpg)"
         result = extract_markdown_links(text)
         self.assertEqual(result, [])
+
+
+class TestSplitNodesImage(unittest.TestCase):
+    def test_no_images(self):
+        nodes = [TextNode("Hello world", TextType.TEXT)]
+        result = split_nodes_image(nodes)
+        self.assertEqual(result, nodes)
+
+    def test_single_image(self):
+        nodes = [
+            TextNode("image: ![alt text](http://example.com/image.jpg)", TextType.TEXT)
+        ]
+        result = split_nodes_image(nodes)
+        self.assertEqual(
+            result,
+            [
+                TextNode("image: ", TextType.TEXT),
+                TextNode("alt text", TextType.IMAGE, "http://example.com/image.jpg"),
+            ],
+        )
+
+    def test_multiple_images(self):
+        nodes = [
+            TextNode(
+                "First image: ![first](http://example.com/first.jpg) and second image: ![second](http://example.com/second.jpg)",
+                TextType.TEXT,
+            )
+        ]
+        result = split_nodes_image(nodes)
+        self.assertEqual(
+            result,
+            [
+                TextNode("First image: ", TextType.TEXT),
+                TextNode("first", TextType.IMAGE, "http://example.com/first.jpg"),
+                TextNode(" and second image: ", TextType.TEXT),
+                TextNode("second", TextType.IMAGE, "http://example.com/second.jpg"),
+            ],
+        )
+
+
+class TestSplitNodesLink(unittest.TestCase):
+    def test_no_links(self):
+        nodes = [TextNode("Hello world", TextType.TEXT)]
+        result = split_nodes_link(nodes)
+        self.assertEqual(result, nodes)
+
+    def test_single_link(self):
+        nodes = [TextNode("link: [Google](http://google.com)", TextType.TEXT)]
+        result = split_nodes_link(nodes)
+        self.assertEqual(
+            result,
+            [
+                TextNode("link: ", TextType.TEXT),
+                TextNode("Google", TextType.LINK, "http://google.com"),
+            ],
+        )
+
+    def test_multiple_links(self):
+        nodes = [
+            TextNode(
+                "First link: [Google](http://google.com) and second link: [GitHub](http://github.com)",
+                TextType.TEXT,
+            )
+        ]
+        result = split_nodes_link(nodes)
+        self.assertEqual(
+            result,
+            [
+                TextNode("First link: ", TextType.TEXT),
+                TextNode("Google", TextType.LINK, "http://google.com"),
+                TextNode(" and second link: ", TextType.TEXT),
+                TextNode("GitHub", TextType.LINK, "http://github.com"),
+            ],
+        )
 
 
 if __name__ == "__main__":
