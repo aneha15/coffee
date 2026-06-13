@@ -6,8 +6,28 @@ from src.inline_markdown import text_to_textnodes
 
 
 def markdown_to_blocks(text: str) -> list[str]:
-    blocks = text.split("\n\n")
-    return [block.strip() for block in blocks if block.strip()]
+    blocks = []
+    current = []
+    in_code_block = False
+
+    for line in text.splitlines():
+        if line.strip().startswith("```"):
+            in_code_block = not in_code_block
+            current.append(line)
+        elif not in_code_block and line.strip() == "":
+            if current:
+                blocks.append("\n".join(current))
+                current = []
+        else:
+            if in_code_block:
+                current.append(line)
+            else:
+                current.append(line.strip())
+
+    if current:
+        blocks.append("\n".join(current))
+
+    return [b for b in blocks if b.strip()]
 
 
 class BlockType(Enum):
@@ -31,7 +51,7 @@ def block_to_block_type(block: str) -> BlockType:
     if all(line.startswith(">") for line in lines):
         return BlockType.QUOTE
 
-    if all(line.startswith("- ") for line in lines):
+    if all(re.match(r"^[-*] ", line) for line in lines):
         return BlockType.UNORDERED_LIST
 
     if all(re.match(rf"^{i+1}\. ", line) for i, line in enumerate(lines)):
@@ -41,6 +61,9 @@ def block_to_block_type(block: str) -> BlockType:
 
 
 def markdown_to_html_node(md: str) -> HTMLNode:
+    if not isinstance(md, str):
+        raise TypeError(f"Expected str, got {type(md).__name__}")
+
     blocks = markdown_to_blocks(md)
     children = [block_to_html_node(block) for block in blocks]
     return ParentNode("div", children)
@@ -67,9 +90,8 @@ def block_to_html_node(block: str) -> HTMLNode:
 
         case BlockType.CODE:
             return code_to_html_node(block)
-
         case _:
-            raise ValueError(f"Invalid block type {block_type}")
+            raise ValueError(f"Unhandled block type: {block_type}")
 
 
 def paragraph_to_html_node(block: str) -> HTMLNode:
@@ -78,7 +100,10 @@ def paragraph_to_html_node(block: str) -> HTMLNode:
 
 
 def heading_to_html_node(block: str) -> HTMLNode:
-    level = len(re.match(r"^(#{1,6}) ", block).group(1))
+    m = re.match(r"^(#{1,6}) ", block)
+    if not m:
+        raise ValueError(f"Invalid heading block: {block!r}")
+    level = len(m.group(1))
     text = block[level + 1 :]
     return ParentNode(f"h{level}", text_to_children(text))
 
@@ -89,17 +114,17 @@ def quote_to_html_node(block: str) -> HTMLNode:
 
 
 def unordered_list_to_html_node(block: str) -> HTMLNode:
-    items = [line[2:] for line in block.splitlines()]
+    items = [re.sub(r"^[-*] ", "", line) for line in block.splitlines()]
     return ParentNode("ul", [ParentNode("li", text_to_children(i)) for i in items])
 
 
 def ordered_list_to_html_node(block: str) -> HTMLNode:
-    items = [re.sub(r"^\d+\. ", "", line) for line in block.splitlines()]
+    items = [re.sub(r"^\d+\.\s+", "", line) for line in block.splitlines()]
     return ParentNode("ol", [ParentNode("li", text_to_children(i)) for i in items])
 
 
 def code_to_html_node(block: str) -> HTMLNode:
-    code = block[4:-4]
+    code = block.removeprefix("```\n").removesuffix("\n```")
     return ParentNode("pre", [LeafNode("code", code)])
 
 
